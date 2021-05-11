@@ -12,8 +12,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Shared.Extensions;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using static System.FormattableString;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace FormatInvariantAnalyzer
 {
@@ -33,13 +33,13 @@ namespace FormatInvariantAnalyzer
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+            SyntaxNode root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
 
-            var diagnostic = context.Diagnostics.First();
-            var diagnosticSpan = diagnostic.Location.SourceSpan;
+            Diagnostic diagnostic = context.Diagnostics.First();
+            Microsoft.CodeAnalysis.Text.TextSpan diagnosticSpan = diagnostic.Location.SourceSpan;
 
             // Find the type declaration identified by the diagnostic.
-            var declaration = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().First();
+            InvocationExpressionSyntax declaration = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().First();
 
             // Register a code action that will invoke the fix.
             context.RegisterCodeFix(
@@ -55,8 +55,8 @@ namespace FormatInvariantAnalyzer
             // Add using static System.FormattableString;
             if (root?.Usings.Any(u => u.Name.ToString() == "System.FormattableString") == false)
             {
-                var name = QualifiedName(IdentifierName("System"), IdentifierName("FormattableString"));
-                var usingStatement = UsingDirective(SyntaxFactory.Token(SyntaxKind.StaticKeyword), null, name);
+                QualifiedNameSyntax name = QualifiedName(IdentifierName("System"), IdentifierName("FormattableString"));
+                UsingDirectiveSyntax usingStatement = UsingDirective(SyntaxFactory.Token(SyntaxKind.StaticKeyword), null, name);
                 root = root.AddUsings(usingStatement);
             }
 
@@ -65,43 +65,47 @@ namespace FormatInvariantAnalyzer
 
         private async Task<Document> ReplaceWithFormattableStringInvariant(Document document, InvocationExpressionSyntax invocationExpression, CancellationToken cancellationToken)
         {
-            var firstArgument = invocationExpression.ArgumentList.Arguments.FirstOrDefault();
+            ArgumentSyntax firstArgument = invocationExpression.ArgumentList.Arguments.FirstOrDefault();
             var stringLiteralExpression = invocationExpression.ArgumentList.Arguments.FirstOrDefault()?.Expression as LiteralExpressionSyntax;
             string stringArgument = stringLiteralExpression?.Token.Text;
             var newArgs = new List<ArgumentSyntax>();
 
-            Regex stringInterpolationPartsRegex = new Regex(@"(\{[0-9]+\})");
-            var matches = stringInterpolationPartsRegex.Matches(stringArgument);
+            var stringInterpolationPartsRegex = new Regex(@"(\{[0-9]+\})");
+            MatchCollection matches = stringInterpolationPartsRegex.Matches(stringArgument);
 
-            List<InterpolatedStringContentSyntax> interpolatedStringContents = new List<InterpolatedStringContentSyntax>();
+            var interpolatedStringContents = new List<InterpolatedStringContentSyntax>();
 
             string partialStringArgument = GetTextWithoutQuotes(stringArgument);
             for (int i = 0; i < matches.Count; i++)
             {
-                var interpolationMatch = Regex.Match(partialStringArgument, $@"(?<innerString>.*(?=(?<interpolation>\{{{i}\}})))");
-                var innerString = interpolationMatch.Groups["innerString"].Value;
-                interpolatedStringContents.Add(SyntaxFactory.InterpolatedStringText(SyntaxFactory.Token(default(SyntaxTriviaList), SyntaxKind.InterpolatedStringTextToken, innerString, innerString, default(SyntaxTriviaList))));
-                interpolatedStringContents.Add(SyntaxFactory.Interpolation(invocationExpression.ArgumentList.Arguments[i + 1].Expression as IdentifierNameSyntax));
+                Match interpolationMatch = Regex.Match(partialStringArgument, $@"(?<innerString>.*(?=(?<interpolation>\{{{i}\}})))");
+                string innerString = interpolationMatch.Groups["innerString"].Value;
+                interpolatedStringContents.Add(InterpolatedStringText(Token(default(SyntaxTriviaList), SyntaxKind.InterpolatedStringTextToken, innerString, innerString, default(SyntaxTriviaList))));
+                interpolatedStringContents.Add(Interpolation(invocationExpression.ArgumentList.Arguments[i + 1].Expression as IdentifierNameSyntax));
                 partialStringArgument = partialStringArgument.Substring(interpolationMatch.Groups["interpolation"].Index + interpolationMatch.Groups["interpolation"].Length);
             }
 
             if (partialStringArgument.Length > 0)
             {
-                interpolatedStringContents.Add(SyntaxFactory.InterpolatedStringText(SyntaxFactory.Token(default(SyntaxTriviaList), SyntaxKind.InterpolatedStringTextToken, partialStringArgument, partialStringArgument, default(SyntaxTriviaList))));
+                interpolatedStringContents.Add(InterpolatedStringText(Token(default(SyntaxTriviaList), SyntaxKind.InterpolatedStringTextToken, partialStringArgument, partialStringArgument, default(SyntaxTriviaList))));
             }
 
-            var interpolatedStringArgument = SyntaxFactory.InterpolatedStringExpression(SyntaxFactory.Token(SyntaxKind.InterpolatedStringStartToken), List(interpolatedStringContents), SyntaxFactory.Token(SyntaxKind.InterpolatedStringEndToken));
+            InterpolatedStringExpressionSyntax interpolatedStringArgument = InterpolatedStringExpression(
+                Token(SyntaxKind.InterpolatedStringStartToken),
+                List(interpolatedStringContents),
+                Token(SyntaxKind.InterpolatedStringEndToken));
+
             newArgs.Add(Argument(interpolatedStringArgument));
-            var argumentList = SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList<ArgumentSyntax>(newArgs));
+            ArgumentListSyntax argumentList = ArgumentList(SeparatedList(newArgs));
 
-            var formattedArgumentList = argumentList.WithAdditionalAnnotations(Formatter.Annotation);
+            ArgumentListSyntax formattedArgumentList = argumentList.WithAdditionalAnnotations(Formatter.Annotation);
 
-            var oldRoot = await document.GetSyntaxRootAsync();
+            SyntaxNode oldRoot = await document.GetSyntaxRootAsync();
 
-            var newInvocationExpression = SyntaxFactory.InvocationExpression(SyntaxFactory.IdentifierName(nameof(Invariant)), formattedArgumentList);
-            var newRoot = oldRoot.ReplaceNode(invocationExpression, newInvocationExpression);
+            InvocationExpressionSyntax newInvocationExpression = InvocationExpression(IdentifierName(nameof(Invariant)), formattedArgumentList);
+            SyntaxNode newRoot = oldRoot.ReplaceNode(invocationExpression, newInvocationExpression);
 
-            var rootWithAddedUsings = UpdateUsingDirectives((CompilationUnitSyntax)newRoot);
+            CompilationUnitSyntax rootWithAddedUsings = UpdateUsingDirectives((CompilationUnitSyntax)newRoot);
             return document.WithSyntaxRoot(rootWithAddedUsings);
         }
         protected string GetTextWithoutQuotes(string text)
