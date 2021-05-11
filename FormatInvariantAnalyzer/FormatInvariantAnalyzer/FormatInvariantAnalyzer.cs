@@ -13,7 +13,7 @@ namespace FormatInvariantAnalyzer
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class FormatInvariantAnalyzer : DiagnosticAnalyzer
     {
-        public const string DiagnosticId = "FormatInvariantAnalyzer";
+        public const string DiagnosticId = "TSI001";
 
         private static readonly LocalizableString Title = new LocalizableResourceString(nameof(Resources.AnalyzerTitle), Resources.ResourceManager, typeof(Resources));
         private static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AnalyzerMessageFormat), Resources.ResourceManager, typeof(Resources));

@@ -61,7 +61,7 @@ namespace FormatInvariantAnalyzer {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
+        ///   Looks up a localized string similar to TSI Style: StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
         /// </summary>
         internal static string AnalyzerDescription {
             get {
@@ -70,7 +70,7 @@ namespace FormatInvariantAnalyzer {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
+        ///   Looks up a localized string similar to TSI Style: StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
         /// </summary>
         internal static string AnalyzerMessageFormat {
             get {
@@ -79,7 +79,7 @@ namespace FormatInvariantAnalyzer {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
+        ///   Looks up a localized string similar to TSI Style: StringUtils.FormatInvariant should be replaced with FormattableString.Invariant.
         /// </summary>
         internal static string AnalyzerTitle {
             get {
